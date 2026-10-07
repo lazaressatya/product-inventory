@@ -1,0 +1,102 @@
+services:
+
+  nextjs:
+
+    image: ${DOCKERHUB_USERNAME}/product-inventory:${IMAGE_TAG}
+
+    container_name: product-inventory-app
+
+    restart: always
+
+    environment:
+
+      NODE_ENV: production
+
+      MONGODB_URI: mongodb://admin:${MONGO_PASSWORD}@mongodb:27017/inventory_db?authSource=admin
+
+    depends_on:
+
+      mongodb:
+        condition: service_healthy
+
+    expose:
+
+      - "3000"
+
+    networks:
+
+      - app-network
+
+
+  mongodb:
+
+    image: mongo:7
+
+    container_name: product-inventory-mongodb
+
+    restart: always
+
+    environment:
+
+      MONGO_INITDB_ROOT_USERNAME: admin
+
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+
+    volumes:
+
+      - mongodb_data:/data/db
+
+    networks:
+
+      - app-network
+
+    healthcheck:
+
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --username admin --password ${MONGO_PASSWORD} --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 })'"
+        ]
+
+      interval: 10s
+
+      timeout: 5s
+
+      retries: 10
+
+
+  nginx:
+
+    image: nginx:alpine
+
+    container_name: product-inventory-nginx
+
+    restart: always
+
+    ports:
+
+      - "80:80"
+
+    volumes:
+
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+    depends_on:
+
+      - nextjs
+
+    networks:
+
+      - app-network
+
+
+volumes:
+
+  mongodb_data:
+
+
+networks:
+
+  app-network:
+
+    driver: bridge
